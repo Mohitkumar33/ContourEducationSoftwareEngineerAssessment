@@ -3,25 +3,47 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { consultationSchema } from "@/lib/validation/consultation";
+
+type ActionState = { error: string | null };
 
 export async function createConsultationAction(
-  _prevState: { error: string | null },
+  _prevState: ActionState,
   formData: FormData
-) {
+): Promise<ActionState> {
   const supabase = await createSupabaseServerClient();
 
-  const firstName = String(formData.get("firstName") ?? "").trim();
-  const lastName = String(formData.get("lastName") ?? "").trim();
-  const reason = String(formData.get("reason") ?? "").trim();
-  const scheduledAtLocal = String(formData.get("scheduledAt") ?? "").trim();
+  // Validate input (never trust client)
+  const parsed = consultationSchema.safeParse({
+    firstName: formData.get("firstName"),
+    lastName: formData.get("lastName"),
+    reason: formData.get("reason"),
+    scheduledAt: formData.get("scheduledAt"),
+  });
 
-  if (!firstName || !lastName || !reason || !scheduledAtLocal) {
-    return { error: "All fields are required." };
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
-  const scheduled_at = new Date(scheduledAtLocal).toISOString();
+  const { firstName, lastName, reason, scheduledAt } = parsed.data;
 
-  const { data: { user } } = await supabase.auth.getUser();
+  // Validate date
+  const scheduledDate = new Date(scheduledAt);
+  const scheduledTime = scheduledDate.getTime();
+
+  if (Number.isNaN(scheduledTime)) {
+    return { error: "Invalid date/time." };
+  }
+
+  // Nice touch: prevent booking in the past (using server time)
+  if (scheduledTime < Date.now()) {
+    return { error: "Please choose a future date/time." };
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   if (!user) redirect("/login");
 
   const { error } = await supabase.from("consultations").insert({
@@ -29,10 +51,12 @@ export async function createConsultationAction(
     first_name: firstName,
     last_name: lastName,
     reason,
-    scheduled_at,
+    scheduled_at: scheduledDate.toISOString(),
   });
 
-  if (error) return { error: error.message };
+  if (error) {
+    return { error: error.message };
+  }
 
   revalidatePath("/dashboard");
   return { error: null };

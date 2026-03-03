@@ -1,81 +1,71 @@
+"use client";
+
+import { useActionState } from "react";
 import { signUpAction } from "@/app/actions/auth";
 
+const initialState = { error: null as string | null };
+
 export default function SignupPage() {
+  const [state, formAction, pending] = useActionState(
+    signUpAction,
+    initialState
+  );
+
   return (
     <main className="mx-auto max-w-md p-6">
       <h1 className="text-2xl font-semibold">Create account</h1>
-      <p className="mt-2 text-sm text-gray-600">
-        Sign up to book and manage consultations.
-      </p>
 
-      <form action={signUpAction} className="mt-6 space-y-4">
+      <form action={formAction} className="mt-6 space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-sm font-medium">First name</label>
-            <input
-              name="firstName"
-              required
-              className="mt-1 w-full rounded border p-2"
-              autoComplete="given-name"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Last name</label>
-            <input
-              name="lastName"
-              required
-              className="mt-1 w-full rounded border p-2"
-              autoComplete="family-name"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="text-sm font-medium">Phone (optional)</label>
           <input
-            name="phone"
-            className="mt-1 w-full rounded border p-2"
-            autoComplete="tel"
-          />
-        </div>
-
-        <div>
-          <label className="text-sm font-medium">Email</label>
-          <input
-            name="email"
-            type="email"
+            name="firstName"
             required
-            className="mt-1 w-full rounded border p-2"
-            autoComplete="email"
+            placeholder="First name"
+            className="rounded border p-2"
+          />
+          <input
+            name="lastName"
+            required
+            placeholder="Last name"
+            className="rounded border p-2"
           />
         </div>
 
-        <div>
-          <label className="text-sm font-medium">Password</label>
-          <input
-            name="password"
-            type="password"
-            required
-            className="mt-1 w-full rounded border p-2"
-            autoComplete="new-password"
-            minLength={8}
-          />
-          <p className="mt-1 text-xs text-gray-500">Min 8 characters.</p>
-        </div>
+        <input
+          name="phone"
+          placeholder="Phone (optional)"
+          className="w-full rounded border p-2"
+        />
+
+        <input
+          name="email"
+          type="email"
+          required
+          placeholder="Email"
+          className="w-full rounded border p-2"
+        />
+
+        <input
+          name="password"
+          type="password"
+          required
+          minLength={8}
+          placeholder="Password"
+          className="w-full rounded border p-2"
+        />
+
+        {state.error && (
+          <div className="rounded border border-red-300 bg-red-50 p-2 text-sm text-red-700">
+            {state.error}
+          </div>
+        )}
 
         <button
-          type="submit"
-          className="w-full rounded bg-black px-4 py-2 text-white"
+          disabled={pending}
+          className="w-full rounded bg-black px-4 py-2 text-white disabled:opacity-60"
         >
-          Sign up
+          {pending ? "Creating account..." : "Sign up"}
         </button>
-
-        <p className="text-sm text-gray-600">
-          Already have an account?{" "}
-          <a className="underline" href="/login">
-            Log in
-          </a>
-        </p>
       </form>
     </main>
   );

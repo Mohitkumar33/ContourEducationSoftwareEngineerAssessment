@@ -3,44 +3,33 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export async function signUpAction(formData: FormData) {
+export async function signUpAction(
+  _prevState: { error: string | null },
+  formData: FormData
+) {
   const supabase = await createSupabaseServerClient();
 
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-  const firstName = formData.get("firstName") as string;
-  const lastName = formData.get("lastName") as string;
-  const phone = formData.get("phone") as string;
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const firstName = String(formData.get("firstName") ?? "").trim();
+  const lastName = String(formData.get("lastName") ?? "").trim();
+  const phoneRaw = String(formData.get("phone") ?? "").trim();
+  const phone = phoneRaw.length ? phoneRaw : null;
 
-  // 1️⃣ Create auth user
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-  });
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) return { error: error.message };
 
   const user = data.user;
+  if (!user) return { error: "User creation failed." };
 
-  if (!user) {
-    throw new Error("User creation failed");
-  }
+  const { error: profileError } = await supabase.from("profiles").insert({
+    id: user.id,
+    first_name: firstName,
+    last_name: lastName,
+    phone,
+  });
 
-  // 2️⃣ Insert into profiles table
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .insert({
-      id: user.id,
-      first_name: firstName,
-      last_name: lastName,
-      phone: phone || null,
-    });
-
-  if (profileError) {
-    throw new Error(profileError.message);
-  }
+  if (profileError) return { error: profileError.message };
 
   redirect("/dashboard");
 }
